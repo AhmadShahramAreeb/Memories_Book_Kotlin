@@ -27,6 +27,7 @@ import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.schedulers.Schedulers
 import java.io.ByteArrayOutputStream
+import java.util.Arrays
 
 class MemoriesActivity : AppCompatActivity() {
 
@@ -46,8 +47,13 @@ class MemoriesActivity : AppCompatActivity() {
     //Rxjava Asynchron
     val compositeDisposable = CompositeDisposable()   // işlem sonunca gelen verileri temizler
 
+
     //Character From Main
     var characterFromMain : Relation_Character? = null
+
+
+    //update işlemi için ByteArray Fotoğraf
+    private var latestImageBitmap : Bitmap? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -71,6 +77,7 @@ class MemoriesActivity : AppCompatActivity() {
             binding.secondMemoryText.setText("")
             binding.saveButton.visibility = View.VISIBLE
             binding.deleteButton.visibility = View.GONE
+            binding.updateButton.visibility = View.GONE
             binding.imageView.setImageResource(R.drawable.uploadimagehere)
             } else  {
                 binding.saveButton.visibility = View.GONE
@@ -81,9 +88,11 @@ class MemoriesActivity : AppCompatActivity() {
                     val bitmap = BitmapFactory.decodeByteArray(byteArray,0,byteArray!!.size)
                     binding.imageView.setImageBitmap(bitmap)
                     binding.fullNameText.setText(it.fullName)
+                    binding.relationshipText.setText(it.relation)
                     binding.firstMemoryText.setText(it.firstMemory)
                     binding.secondMemoryText.setText(it.secondMemory)
                     binding.poemText.setText(it.poem)
+
                 }
 
         }
@@ -172,6 +181,7 @@ class MemoriesActivity : AppCompatActivity() {
         val intent = Intent(this,MainActivity::class.java)
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
         startActivity(intent)
+        selectedBitmap=null
 
     }
 
@@ -186,6 +196,76 @@ class MemoriesActivity : AppCompatActivity() {
         }
 
 
+    }
+
+    fun updateButtonClicked(view : View){
+        if (isDataChanged() || selectedBitmap != null ){
+            // Update işlemleri yapılacak
+
+            val updatedFullName = binding.fullNameText.text.toString()
+            val updatedRelationship = binding.relationshipText.text.toString()
+            val updatedFirstMemory = binding.firstMemoryText.text.toString()
+            val updatedSecondMemory = binding.secondMemoryText.text.toString()
+            val updatedPoem = binding.poemText.text.toString()
+            var imageByteArray : ByteArray? = ByteArray(0)
+            
+
+            if (selectedBitmap != null){
+                val smallBitmap = makeSmallerBitmap(selectedBitmap!!,300)
+                val outputStream = ByteArrayOutputStream()
+                smallBitmap.compress(Bitmap.CompressFormat.PNG,50,outputStream)
+                imageByteArray = outputStream.toByteArray()
+            } else {
+                imageByteArray = characterFromMain!!.image
+            }
+
+            // Update the characterFromMain object
+            characterFromMain!!.apply {
+                fullName = updatedFullName
+                relation = updatedRelationship
+                firstMemory = updatedFirstMemory
+                secondMemory = updatedSecondMemory
+                poem = updatedPoem
+                image = imageByteArray
+            }
+
+            // Update the character in the database using RxJava
+            if (characterFromMain != null){
+                compositeDisposable.add(
+                                characterDao.update(characterFromMain!!)
+                                    .subscribeOn(Schedulers.io())
+                                    .observeOn(AndroidSchedulers.mainThread())
+                                    .subscribe(this::handleResponse /*bu fonk. referans verildi*/)
+                            )
+            }
+
+        } else {
+            Toast.makeText(this@MemoriesActivity,"No Changes to Update",Toast.LENGTH_LONG).show()
+        }
+
+    }
+    fun isPictureChanged() : Boolean{
+        return true
+    }
+
+    fun isDataChanged() : Boolean {
+        if (characterFromMain != null){
+            //Eşit değil
+            val updatedFullName = binding.fullNameText.text.toString()
+            val updatedRelationship = binding.relationshipText.text.toString()
+            val updatedFirstMemory = binding.firstMemoryText.text.toString()
+            val updatedSecondMemory = binding.secondMemoryText.text.toString()
+            val updatedPoem = binding.poemText.text.toString()
+
+            return (updatedFullName != characterFromMain!!.fullName ||
+                    updatedRelationship != characterFromMain!!.relation ||
+                    updatedFirstMemory != characterFromMain!!.firstMemory ||
+                    updatedSecondMemory != characterFromMain!!.secondMemory ||
+                    updatedPoem != characterFromMain!!.poem
+                    )
+        }
+            // Eşit
+        return false
     }
 
     override fun onDestroy() {

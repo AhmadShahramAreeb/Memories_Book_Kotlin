@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.Query
+import androidx.room.Update
 import com.example.memories_book_kotlin.model.Relation_Character
 import io.reactivex.rxjava3.core.Completable
 import io.reactivex.rxjava3.core.Flowable
@@ -19,4 +20,7 @@ interface CharacterDao {
 
     @Delete
     fun delete(relationCharacter : Relation_Character) : Completable
+
+    @Update
+    fun update(relationCharacter: Relation_Character) : Completable
 }
